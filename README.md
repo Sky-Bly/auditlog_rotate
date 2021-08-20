@@ -1,0 +1,2 @@
+- A script to rotate those pesky logs that just don't seem to want to do it with logrotate or auditd native functions.
+- Installs as a service, or can be used to manually run from auditd.conf exec
