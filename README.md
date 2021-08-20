@@ -1,4 +1,5 @@
 - A script to rotate filling auditd logs that just don't seem to want to work with logrotate or auditd native functions
+  
   Usually caused by very quickly filling logs or multiple daemons holding file handles open on the log file, or both
 
 - Installs as a service, or can be used to manually run from auditd.conf exec
