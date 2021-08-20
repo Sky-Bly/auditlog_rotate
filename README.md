@@ -8,12 +8,12 @@ Minimal configuration parameters are held in /etc/audrotate/auditlog_rotate.conf
 Point where you would like files to be rotated to with "targetDir"
 Temporary file location and order used is specified via "targetPartitions".
 Valye sizes are in MB. 
-
+```
 audirFreeLimit=2500
 targetDir=/var/log/audit_rotate
 targetDirPadLimit=800
 targetPartitions="/tmp /usr /opt /home"
-
+```
 -----
 Option 1 : Install RPM
 ```
