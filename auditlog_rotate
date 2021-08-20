@@ -137,7 +137,7 @@ function findTargetPartition {
 
 
 if [ $audirFreeI -lt $audirFreeLimit ] ; then
- echo -e "\n$auditDirectory/ has less than 2500M free, proceeding\n"
+ echo -e "\n$auditDirectory/ has less than $audirFreeLimit free, proceeding\n"
  for partition in $targetPartitions ; do 
   findTargetPartition $partition
  done
