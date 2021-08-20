@@ -38,9 +38,6 @@ audirUsed=$(df  $auditDirectory | awk '$1 ~ /^\// {print $3/1024}')
 audirFreeI=$(awk -F'.' '{print $1}' <(echo $audirFree))
 audirUsedI=$(awk -F'.' '{print $1}' <(echo $audirUsed))
 
-audirFreeI=$(awk -F'.' '{print $1}' <(echo $audirFree))
-audirUsedI=$(awk -F'.' '{print $1}' <(echo $audirUsed))
-
 
 echo -e "$auditDirectory/ used ~ +/- $audirUsedI MB"
 
