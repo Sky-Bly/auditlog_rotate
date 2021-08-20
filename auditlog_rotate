@@ -1,0 +1,157 @@
+#!/bin/bash
+# Copyright 2021 Sky Bly ( github.com/sky-bly )
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if [ ! -f /etc/audrotate/auditlog_rotate.conf ] || [ ! -s /etc/audrotate/auditlog_rotate.conf ] ; then 
+ echo "Configuration file /etc/audrotate/auditlog_rotate.conf is missing or empty, exiting"
+ exit 1
+fi
+
+. /etc/audrotate/auditlog_rotate.conf
+
+
+
+echo -e "\n AuditLog-Rotate Service Configuration parameters"
+echo -e "\t audirFreeLimit:$audirFreeLimit"
+echo -e "\t targetDir:$targetDir"
+echo -e "\t targetDirPadLimit:$targetDirPadLimit"
+echo -e "\t partitions/order: $targetPartitions\n\n"
+
+
+auditLogfile=$(awk -F'=' ' $1 ~ /^log_file/ {print $2;exit}' /etc/audit/auditd.conf)
+auditDirectory=$(echo "$auditLogfile"|sed 's|\(.*\)/.*|\1|')
+
+audirFree=$(df  $auditDirectory | awk '$1 ~ /^\// {print $4/1024}')
+audirUsed=$(df  $auditDirectory | awk '$1 ~ /^\// {print $3/1024}')
+
+audirFreeI=$(awk -F'.' '{print $1}' <(echo $audirFree))
+audirUsedI=$(awk -F'.' '{print $1}' <(echo $audirUsed))
+
+audirFreeI=$(awk -F'.' '{print $1}' <(echo $audirFree))
+audirUsedI=$(awk -F'.' '{print $1}' <(echo $audirUsed))
+
+
+echo -e "$auditDirectory/ used ~ +/- $audirUsedI MB"
+
+
+if [ ! -d $targetDir ] ; then
+   mkdir -pv $targetDir
+fi
+
+targetDirFree=$(df $targetDir | awk '$1 ~ /^\// {print $4/1024}')
+targetDirFreeI=$(awk -F'.' '{print $1}' <(echo $targetDirFree))
+
+
+if [ $targetDirFreeI -lt $audirUsedI ] ; then
+ echo -e "Not enough free space in $targetDir, exiting"
+ exit 1
+fi
+
+
+
+
+# this is the primary function that performs the work
+# parameters are passed in for conditional actions 
+
+function checkTargetFree() {
+
+ #The free space used for comparison
+ partFree=$1
+ #The specific partition being targeted
+ part=$(echo $2 | perl -pe 's/\s+//g')
+
+ #comparison check to ensure enough space in target
+ #add free space +targetDirPad
+ targetPad="$(($targetDirPadLimit+$audirUsedI))"
+ echo -e "---------------\n$part free space is $partFree MB, needed is audirUsed+Pad = $targetPad MB \n---------------"
+
+
+ if [ $audirUsedI -gt $partFree ] || [ $partFree -lt $targetPad  ] ; then
+   echo -e "Not enough free space in $part.. checking next location ...\n"
+	return
+        else echo "Using $part for log rotation"
+	setTargetFound=true
+ fi
+
+# create our temporary storage directory and set permissions
+ mkdir /$part/audit_temprot
+ chmod 0600 /$part/audit_temprot
+ touch /$part/audit_temprot/hold_file
+ chmod 0600 /$part/audit_temprot/hold_file
+
+# parse the log files in the audit directory configured in the auditd.conf
+# pass them in a loop to gzip to the target partition/directory
+ for logFound in $(ls $auditDirectory/* | sort -nr  | awk '{print $NF}') ; do
+  cat $logFound | gzip > /$part/audit_temprot/hold_file
+  # make sure we get a unique timestamp
+  sleep 1.1
+  ds=$(date +%s)
+  # put the log data into the rotation hold
+  cat /$part/audit_temprot/hold_file > $targetDir/audit.log.gz.$ds
+  echo "Staged $logFound to $targetDir/audit.log.gz.$ds"
+  # empty our temporary file used to compress data
+  echo > /$part/audit_temprot/hold_file
+  # empty the original log file we referenced
+  echo > $logFound
+  # check the target log size and if in use to determine if we can safely remove it 
+  logSizeFound=$(stat -c%s $logFound)
+  check_audfile_inuse=$(lsof $logFound | wc -c )
+  if [ $logSizeFound -le 2 ]  &&  [ $check_audfile_inuse  -lt 2  ] ; then
+   echo -e "$logFound is 1 byte or less and not held open, removing"
+   /bin/rm -f $logFound
+        else echo -e "$logFound is enough bytes($logSizeFound) or is held open by lsof, leaving intact"
+  fi
+ # end of the log file loop
+ done
+
+ # remove the temporary directory we stored for compressing/staging
+ echo -e "rm -rf $part/audit_temprot/" | bash -v
+
+ # check current state of the audit directory and exit the script
+ echo -e "\n\tCurrent $auditDirectory conents:\n\t_______________"
+ ls -alhs $auditDirectory/
+
+ echo -e "\nDone.. exiting"
+ exit 0
+
+
+}
+
+
+# Check partitions for space used, call rotation/check function
+function findTargetPartition {
+
+ # Check our conditional variable to see if we are done
+ if [ "$setTargetFound" = true ] ; then
+     echo "Exiting - done"
+     exit 0
+ fi
+
+ targetPart=$1
+ # Get free space and convert bytes to int in MB
+ checkPart=$(df  $targetPart | awk '$1 ~ /^\// {print $4/1024}')
+ checkPartI=$(awk -F'.' '{print $1}' <(echo $checkPart))
+
+ checkTargetFree $checkPartI $targetPart
+
+}
+
+
+if [ $audirFreeI -lt $audirFreeLimit ] ; then
+ echo -e "\n$auditDirectory/ has less than $audirFreeLimit free, proceeding\n"
+ for partition in $targetPartitions ; do 
+  findTargetPartition $partition
+ done
+fi
+
