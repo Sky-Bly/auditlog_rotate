@@ -13,43 +13,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#Sanity check for configuration file
 if [ ! -f /etc/audrotate/auditlog_rotate.conf ] || [ ! -s /etc/audrotate/auditlog_rotate.conf ] ; then 
  echo "Configuration file /etc/audrotate/auditlog_rotate.conf is missing or empty, exiting"
  exit 1
 fi
 
+#Source in our configuration parameters
 . /etc/audrotate/auditlog_rotate.conf
 
-
-
+#Print out set values for journal
 echo -e "\n AuditLog-Rotate Service Configuration parameters"
 echo -e "\t audirFreeLimit:$audirFreeLimit"
 echo -e "\t targetDir:$targetDir"
 echo -e "\t targetDirPadLimit:$targetDirPadLimit"
 echo -e "\t partitions/order: $targetPartitions\n\n"
 
-
+#Check the specified logfile in audit configuration, get the directory after that
 auditLogfile=$(awk -F'=' ' $1 ~ /^log_file/ {print $2;exit}' /etc/audit/auditd.conf)
 auditDirectory=$(echo "$auditLogfile"|sed 's|\(.*\)/.*|\1|')
 
+#Check the used space on the audir directory
 audirFree=$(df  $auditDirectory | awk '$1 ~ /^\// {print $4/1024}')
 audirUsed=$(df  $auditDirectory | awk '$1 ~ /^\// {print $3/1024}')
 
+#Convert them to ints
 audirFreeI=$(awk -F'.' '{print $1}' <(echo $audirFree))
 audirUsedI=$(awk -F'.' '{print $1}' <(echo $audirUsed))
 
-
+#Display information we obtained
 echo -e "$auditDirectory/ used ~ +/- $audirUsedI MB"
 
 
+#Make sure our target directory exists
 if [ ! -d $targetDir ] ; then
-   mkdir -pv $targetDir
+   mkdir -pv $targetDir   
 fi
 
+#Get the free space on the target directory/mount
 targetDirFree=$(df $targetDir | awk '$1 ~ /^\// {print $4/1024}')
 targetDirFreeI=$(awk -F'.' '{print $1}' <(echo $targetDirFree))
 
-
+#Check if the free space available is more than the audit directory is using
 if [ $targetDirFreeI -lt $audirUsedI ] ; then
  echo -e "Not enough free space in $targetDir, exiting"
  exit 1
@@ -129,22 +134,24 @@ function checkTargetFree() {
 # Check partitions for space used, call rotation/check function
 function findTargetPartition {
 
- # Check our conditional variable to see if we are done
+ # Check our conditional variable to see if we are done, else continue
  if [ "$setTargetFound" = true ] ; then
      echo "Exiting - done"
      exit 0
  fi
 
+ #Check the passed in partition from the partition for loop check
  targetPart=$1
  # Get free space and convert bytes to int in MB
  checkPart=$(df  $targetPart | awk '$1 ~ /^\// {print $4/1024}')
  checkPartI=$(awk -F'.' '{print $1}' <(echo $checkPart))
-
+ 
+ #Call the active function with specified partition and space checked
  checkTargetFree $checkPartI $targetPart
 
 }
 
-
+#Loop through the configured partitions and pass them to the runner loop if sane
 if [ $audirFreeI -lt $audirFreeLimit ] ; then
  echo -e "\n$auditDirectory/ has less than $audirFreeLimit free, proceeding\n"
  for partition in $targetPartitions ; do 
