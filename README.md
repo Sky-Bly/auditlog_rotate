@@ -1,4 +1,4 @@
-- A script to rotate filling logs that just don't seem to want to work with logrotate or auditd native function.
+- A script to rotate filling logs that just don't seem to want to work with logrotate or auditd native functions
 - Installs as a service, or can be used to manually run from auditd.conf exec
 
 Minimal configuration parameters are held in /etc/audrotate/auditlog_rotate.conf
