@@ -24,7 +24,7 @@ Option 1 : Install RPM
 curl -vsL https://github.com/Sky-Bly/auditlog_rotate/raw/main/auditlog-rotate-1-01.el7.x86_64.rpm > auditlog-rotate-1-01.el7.x86_64.rpm
 curl -vsL https://raw.githubusercontent.com/Sky-Bly/auditlog_rotate/main/RPM-GPG-KEY-rpm > /etc/pki/rpm-gpg/RPM-GPG-KEY-audlog
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-audlog
-yum localinstal auditlog-rotate-1-01.el7.x86_64.rpm
+yum localinstall auditlog-rotate-1-01.el7.x86_64.rpm
 systemctl enable auditlog-rotate.service
 systemctl start auditlog-rotate.service
 ```
