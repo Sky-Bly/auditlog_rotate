@@ -14,7 +14,7 @@ Temporary file location and order precedence is specified via "targetPartitions"
 
 Values are in MB. 
 ```
-audirFreeLimit=2500
+audirFreeLimit=250
 targetDir=/var/log/audit_rotate
 targetDirPadLimit=800
 targetPartitions="/tmp /usr /opt /home"
